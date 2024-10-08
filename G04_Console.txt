@@ -1,0 +1,261 @@
+-- //////////////////////// TPE BDD  ////////////////////////
+
+-- TABLA Cliente:
+ALTER TABLE Cliente ADD CONSTRAINT ck_saldo_no_negativo
+CHECK (saldo >= 0);
+-- Justificación: Este CHECK se asegura de que ningún cliente tenga un saldo negativo. El saldo de la cuenta del
+-- cliente debe mantenerse siempre el positivo ya que no se aceptan deudas.
+
+-- TABLA Comprobante:
+ALTER TABLE Comprobante ADD CONSTRAINT ck_fecha_vencimiento
+CHECK (fecha_vencimiento >= fecha);
+-- Justificación: Este CHECK garantiza que la fecha de vencimiento de un comprobante sea igual o posterior a la
+-- fecha de emisión. Que la fecha de vencimiento de un comprobante sea mayor a la fecha en la que se crea es incoherente.
+
+ALTER TABLE Comprobante ADD CONSTRAINT ck_importe_positivo
+CHECK (importe >= 0);
+-- Justificación: Este CHECK asegura que el importe de un comprobante debe ser un valor positivo o cero, dejando
+-- en claro que no se pueden crear comprobantes con importes negativos.
+
+-- TABLA Equipo:
+ALTER TABLE Equipo ADD CONSTRAINT ck_fecha_limite
+CHECK (fecha_alta < fecha_baja);
+-- Justificación: Este CHECK se garantiza de que la fecha de baja de un equipo ocurra después de su fecha de alta.
+-- Esto asegura que los períodos de uso de los equipos sean válidos, evitando situaciones donde el equipo esté
+-- dado de baja antes de haber sido dado de alta.
+
+-- TABLA LineaComprobante:
+ALTER TABLE LineaComprobante ADD CONSTRAINT ck_cantidad_no_negativa
+CHECK (cantidad > 0);
+-- Justificación: Este CHECK asegura que la cantidad de un producto o servicio en una línea de comprobante sea siempre
+-- positiva. Registrar una cantidad negativa sería incoherente ya que estamos hablando de una compra real de productos.
+
+ALTER TABLE LineaComprobante ADD CONSTRAINT ck_importe_positivo
+CHECK (importe > 0);
+-- Justificación: Este CHECK asegura que el importe asociado a cada línea de comprobante sea positivo.
+-- Un valor negativo en el importe representa un error de cálculo.
+
+ALTER TABLE Servicio ADD CONSTRAINT ck_costo_positivo
+CHECK (costo >= 0);
+-- Justificación: Este CHECK asegura que el costo de un servicio no puede ser negativo. Esto se realiza para garantizar
+-- que el valor asignado a los servicios sea positivo, evitando así el ingreso erróneo	de valores.
+
+ALTER TABLE Turno ADD CONSTRAINT ck_fecha_limite
+CHECK (desde < hasta);
+-- Justificación: Este CHECK asegura que un turno tenga una duración válida, es decir, que la hora de inicio sea antes
+-- que la de finalización. Que un turno termine antes de comenzar es incoherente.
+
+ALTER TABLE Turno ADD CONSTRAINT ck_dinero_positivo
+CHECK (dinero_inicio > 0 AND dinero_fin > 0);
+-- Justificación: Este CHECK garantiza que tanto el dinero al inicio como al final del turno sean valores positivos.
+-- Esto previene inconsistencias, y asegura que por más que se realicen gastos el dinero final nunca sea negativo, por lo que no se podría realizar una compra sin tener el dinero suficiente.
+
+ALTER TABLE Turno ADD CONSTRAINT ck_dinero_orden
+CHECK (dinero_inicio > dinero_fin);
+-- Justificación: Este CHECK asegura que el dinero al inicio del turno sea mayor que el dinero al final, lo que indica
+-- un consumo de recursos o gastos durante el turno.
+
+-- ---------------- Insert y Delete tuplas ----------------
+
+-- //////////////////////// DELETE DE TABLAS  ////////////////////////
+DELETE FROM Persona
+WHERE id_persona = 3;
+
+DELETE FROM Cliente
+WHERE id_cliente = 1;
+
+DELETE FROM Comprobante
+WHERE id_comp = 102;
+
+DELETE FROM lineacomprobante
+WHERE id_tcomp = 1;
+
+UPDATE Persona
+SET id_persona = 2
+WHERE id_persona = 3;
+
+-- //////////////////////// 1-a Tuplas para check  ////////////////////////
+
+-- INSERT que cumple la restricción -> CUMPLE con el Alter table del inciso 1-a
+INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail)
+VALUES (1, 'Física', 'DNI', '87654321', 'María', 'Gómez', '1985-05-15', '2024-01-01', '2024-07-15', false, 'maria.gomez@mail.com');
+
+-- INSERT que cumple la restricción porque la persona está activa
+INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail)
+VALUES (2, 'Física', 'DNI', '11223344', 'Carlos', 'López', '1980-10-10', '2024-01-01', NULL, true, 'carlos.lopez@mail.com');
+
+-- INSERT que no cumple la restricción -> NO CUMPLE con el Alter table del inciso 1-a
+INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail)
+VALUES (3, 'Física', 'DNI', '12345678', 'Juan', 'Pérez', '1990-01-01', '2024-01-01', '2024-04-01', false, 'juan.perez@mail.com');
+
+SELECT p.*
+FROM unc_249828.persona p;
+
+-- ---------------- Inciso 1) a ----------------
+
+ALTER TABLE Persona
+ADD CONSTRAINT chk_fecha_baja
+CHECK (
+    (activo = true AND fecha_baja IS NULL) OR
+    (activo = false AND fecha_baja IS NOT NULL AND fecha_baja >= fecha_alta + INTERVAL '6 months')
+);
+
+
+
+
+-- //////////////////////// 1-b Tuplas para check  ////////////////////////
+
+-- Insert en LineaComprobante
+INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp,descripcion, cantidad, importe, id_servicio) VALUES
+(1, 101, 1, 'descripcion1',10, 50,null);
+
+INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp,descripcion, cantidad, importe, id_servicio) VALUES
+(2, 101, 1, 'descripcion2',20, 30,null);
+
+INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp,descripcion, cantidad, importe, id_servicio) VALUES
+(3, 101, 1, 'descripcion3',20, 20,null);
+
+-- Insert en Comprobante que cumple con la suma de LineaComprobante
+INSERT INTO Comprobante (id_comp, id_tcomp,fecha, comentario,estado, fecha_vencimiento, id_turno, importe, id_cliente, id_lugar ) VALUES
+(101, 1, '1980-10-10', 'comentario ','', '1980-10-10',  null,  80, 1, 1);
+
+INSERT INTO Comprobante (id_comp, id_tcomp,fecha, comentario,estado, fecha_vencimiento, id_turno, importe, id_cliente, id_lugar ) VALUES
+(101, 1, '1980-10-10', 'comentario ','', '1980-10-10',  null,  0, 1, 1);
+
+INSERT INTO tipocomprobante (id_tcomp, nombre, tipo ) VALUES
+(1, 'Pablo', '');
+
+INSERT INTO cliente (id_cliente, saldo ) VALUES
+(1, 20.00);
+
+INSERT INTO cliente (id_cliente, saldo ) VALUES
+(2, 20.00);
+
+INSERT INTO Lugar (id_lugar, nombre ) VALUES
+(1, 'Pablo');
+
+UPDATE comprobante
+SET importe = 100
+WHERE id_tcomp = 1 and id_comp = 101;
+
+UPDATE lineacomprobante
+SET importe = 40
+WHERE id_tcomp = 1 and id_comp = 101;
+
+SELECT t.*
+FROM unc_249828.comprobante t;
+
+SELECT lc.*
+FROM unc_249828.lineacomprobante lc;
+
+-- ---------------- Inciso 1) b ----------------
+-- Esta consulta te devuelve todos los comprobantes donde el importe no coincide con la suma de los importes
+-- de las líneas asociadas. COALESCE se usa para manejar el caso en que no haya líneas asociadas
+-- (en cuyo caso, el total es 0).
+
+SELECT c.id_comp, c.id_tcomp, c.importe
+FROM Comprobante c
+LEFT JOIN LineaComprobante lc Using(id_comp,id_tcomp)
+GROUP BY c.id_comp, c.id_tcomp, c.importe
+HAVING c.importe = COALESCE(SUM(lc.importe), 0);
+
+
+
+CREATE OR REPLACE FUNCTION func_verificar_importe_comprobante()
+RETURNS TRIGGER AS $$
+DECLARE
+    total_importe NUMERIC;
+BEGIN
+    -- Calcular la suma de los importes de las líneas del comprobante
+    SELECT COALESCE(SUM(lc.importe), 0) INTO total_importe
+    FROM LineaComprobante lc
+    WHERE lc.id_comp = NEW.id_comp AND lc.id_tcomp = NEW.id_tcomp;
+
+    IF tg_op = 'UPDATE' THEN
+        -- Verificar si el importe del comprobante coincide con el total
+        IF NEW.importe <> total_importe THEN
+            RAISE EXCEPTION 'El i mporte del comprobante debe ser igual a la suma de los importes de las líneas. Se esperaba %. Se recibió %.', total_importe, NEW.importe;
+        END IF;
+    END if;
+
+    IF tg_op = 'INSERT' THEN
+        -- Verificar si el total_importe es 0
+        IF total_importe = 0 AND NEW.importe <> 0 THEN
+            RAISE EXCEPTION 'El total de importes de las líneas es 0. No se puede crear o actualizar el comprobante.';
+        END IF;
+    END if;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE TRIGGER trigger_verificar_importe_insert
+AFTER INSERT OR UPDATE ON Comprobante
+FOR EACH ROW
+EXECUTE FUNCTION func_verificar_importe_comprobante();
+
+
+CREATE OR REPLACE FUNCTION func_actualizar_importe_comprobante()
+RETURNS TRIGGER AS $$
+DECLARE
+    total_importe NUMERIC;
+BEGIN
+    -- Calcular la suma total de importes de las líneas del comprobante
+    SELECT COALESCE(SUM(importe), 0) INTO total_importe
+    FROM LineaComprobante
+    WHERE id_comp = NEW.id_comp AND id_tcomp = NEW.id_tcomp;
+
+    -- Actualizar el importe del comprobante
+    UPDATE Comprobante
+    SET importe = total_importe
+    WHERE id_comp = NEW.id_comp AND id_tcomp = NEW.id_tcomp;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER  trigger_actualizar_importe
+AFTER INSERT OR UPDATE ON LineaComprobante
+FOR EACH ROW
+EXECUTE FUNCTION func_actualizar_importe_comprobante();
+
+-- ---------------- Inciso 1) c ----------------
+CREATE OR REPLACE FUNCTION verificar_ip_unica()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Verificar si la IP ya está asignada a otro cliente
+     IF EXISTS (SELECT 1
+         FROM Equipo
+         WHERE ip = NEW.ip AND id_cliente <> NEW.id_cliente
+     ) THEN
+         RAISE EXCEPTION 'La IP % ya está asignada a otro cliente.', NEW.ip;
+     END IF;
+
+     RETURN NEW;
+ END;
+ $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_verificar_ip
+BEFORE INSERT OR UPDATE ON Equipo
+FOR EACH ROW
+EXECUTE FUNCTION verificar_ip_unica();
+
+-- //////////////////////// 1-c Tuplas para check  ////////////////////////
+
+--//testeo de insert
+INSERT INTO equipo (id_equipo, nombre, mac, ip, id_cliente, fecha_alta)
+VALUES(123, 'smartphone', '1234','2001',1, '2001-08-18');
+--//equipo insertado//acepta
+INSERT INTO equipo (id_equipo, nombre, mac, ip, id_cliente, fecha_alta)
+VALUES(1234, 'smartphone', '1234','2001',2, '2001-08-18');
+--//equipo a insertar con la misma IP//tira error
+
+--//testeo de update
+UPDATE equipo
+SET ip = '2001'
+WHERE id_equipo = 1234 and id_cliente = 2;
+--//update//tira error
+UPDATE equipo
+SET ip = '2003'
+WHERE id_equipo = 1234 and id_cliente = 2;
+--//update//acepta
