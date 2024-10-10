@@ -1,4 +1,11 @@
 -- tables
+
+-- Table: Personal (Creada por Nosotros)
+CREATE TABLE Personal (
+    id_personal INT PRIMARY KEY,       -- Clave primaria
+    id_rol INT                         -- Clave foránea que referencia a la tabla Rol
+);
+
 -- Table: Barrio
 CREATE TABLE Barrio (
     id_barrio int  NOT NULL,
@@ -274,6 +281,22 @@ ALTER TABLE Turno ADD CONSTRAINT fk_personal_turno
 ALTER TABLE Servicio ADD CONSTRAINT fk_servicio_categoria
     FOREIGN KEY (id_cat)
     REFERENCES Categoria (id_cat)
+    NOT DEFERRABLE
+    INITIALLY IMMEDIATE
+;
+
+-- Reference: fk_persona_personal (table: Personal)
+ALTER TABLE Personal ADD CONSTRAINT fk_persona_personal
+    FOREIGN KEY (id_personal)
+    REFERENCES Persona (id_persona)
+    NOT DEFERRABLE
+    INITIALLY IMMEDIATE
+;
+
+-- Reference: fk_rol_personal (table: Personal)
+ALTER TABLE Personal ADD CONSTRAINT fk_rol_personal
+    FOREIGN KEY (id_rol)
+    REFERENCES Rol (id_rol)
     NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;

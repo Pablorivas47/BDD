@@ -65,10 +65,10 @@ DELETE FROM Cliente
 WHERE id_cliente = 1;
 
 DELETE FROM Comprobante
-WHERE id_comp = 102;
+WHERE id_comp = 6;
 
 DELETE FROM lineacomprobante
-WHERE id_tcomp = 1;
+WHERE id_comp = 6;
 
 UPDATE Persona
 SET id_persona = 2
@@ -230,19 +230,22 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE TRIGGER  trigger_actualizar_importe
+CREATE OR REPLACE TRIGGER trigger_actualizar_importe
 AFTER INSERT OR UPDATE OR DELETE ON LineaComprobante
 FOR EACH ROW
 EXECUTE FUNCTION func_actualizar_importe_comprobante();
 
 -- ---------------- Inciso 1) c ----------------
-CREATE OR REPLACE FUNCTION verificar_ip_unica()
+CREATE OR REPLACE FUNCTION func_verificar_ip_unica()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Verificar si la IP ya está asignada a otro cliente
-     IF EXISTS (SELECT 1
+     IF EXISTS ( SELECT 1
          FROM Equipo
-         WHERE ip = NEW.ip AND id_cliente <> NEW.id_cliente
+         WHERE ip = NEW.ip
+           AND id_cliente <> NEW.id_cliente
+         -- En este caso no chequeamos que la persona este activa o no.
+         -- A las personas inactivas le asignamos de igual manera una IP dandole la oportunidad de activarse
      ) THEN
          RAISE EXCEPTION 'La IP % ya está asignada a otro cliente.', NEW.ip;
      END IF;
@@ -251,10 +254,10 @@ BEGIN
  END;
  $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_verificar_ip
+CREATE OR REPLACE TRIGGER trigger_verificar_ip
 BEFORE INSERT OR UPDATE ON Equipo
 FOR EACH ROW
-EXECUTE FUNCTION verificar_ip_unica();
+EXECUTE FUNCTION func_verificar_ip_unica();
 
 -- //////////////////////// 1-c Tuplas para check  ////////////////////////
 
@@ -325,7 +328,7 @@ CREATE SEQUENCE comprobante_seq
     NO MAXVALUE; -- Sin límite máximo
 
 
-CREATE OR REPLACE PROCEDURE generar_facturas_servicios(fecha_factura DATE)
+CREATE OR REPLACE PROCEDURE proce_generar_facturas_servicios(fecha_factura DATE)
 LANGUAGE 'plpgsql' AS
 $body$
 DECLARE
@@ -344,8 +347,19 @@ BEGIN
         -- Para cada servicio periódico, buscamos los equipos asociados a clientes
         FOR r_equipo IN
             SELECT id_cliente, id_servicio
-            FROM Equipo
+            FROM Equipo e
             WHERE id_servicio = r_servicio.id_servicio AND id_cliente IS NOT NULL
+                AND EXISTS (
+                SELECT 1
+                FROM Cliente c
+                WHERE c.id_cliente = e.id_cliente
+                  AND EXISTS (
+                  SELECT 1
+                  FROM Persona p
+                  WHERE p.id_persona = c.id_cliente
+                    AND p.activo = TRUE
+                  )
+                )
         LOOP
             -- Generar ID único para el comprobante
             v_id_comp := nextval('comprobante_seq'); -- Verifica que la secuencia exista
@@ -386,7 +400,129 @@ EXCEPTION
 END;
 $body$;
 
-CALL generar_facturas_servicios(to_date('2024-10-01', 'yyyy-mm-dd'));
+CALL proce_generar_facturas_servicios(to_date('2024-10-01', 'yyyy-mm-dd'));
+
+-- //////////////////////// 2-b  ////////////////////////
+-- Al ser invocado entre dos fechas cualesquiera genere un informe de los empleados
+-- (personal) junto con la cantidad de clientes distintos que cada uno ha atendido en tal periodo y
+-- los tiempos promedio y máximo del conjunto de turnos atendidos en el periodo.
+
+SELECT r.*
+FROM unc_249828.rol r;
+
+INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail, telef_area, telef_numero)
+VALUES
+(5, 'Física', 'DNI', '876554321', 'Juan', 'Pérez', '1985-05-15', '2024-01-01', null, true, 'juan.perez@mail.com', null,null),
+(6, 'Física', 'DNI', '11223344', 'Ana', 'Gómez', '1980-10-10', '2024-01-01', null, true, 'ana.gomez@mail.com',null,null),
+(7, 'Física', 'DNI', '876554321', 'Luis', 'Martínez', '1985-05-15', '2024-01-01', null, true, 'luis.martinez@mail.com', null,null),
+(8, 'Física', 'DNI', '11223344', 'Sofía', 'Fernández', '1980-10-10', '2024-01-01', null, true, 'sofia.fernandez@mail.com',null,null);
+
+INSERT INTO Rol (id_rol, nombre)
+VALUES
+-- (1, 'Ferbacio'),
+-- (2, 'Pablitongo');
+(5, 'Fotografo'),
+(6, 'Recepcionista');
+
+SELECT p.*
+FROM unc_249828.persona p;
+
+SELECT per.*
+FROM unc_249828.personal per;
+
+INSERT INTO Personal (id_personal, id_rol)
+VALUES
+(1, 1),
+(2, 2);
+
+INSERT INTO Personal (id_personal, id_rol) VALUES
+(5, 5),  -- Juan Pérez como Fotógrafo
+(6, 5),  -- Ana Gómez como Fotógrafo
+(7, 6);  -- Luis Martínez como Recepcionista
+
+INSERT INTO Turno (id_turno, desde, hasta, dinero_inicio, dinero_fin, id_personal, id_lugar)
+VALUES
+(1, '2024-09-02', '2024-09-03', 100, 90, 1, 1),
+(2, '2024-09-05', '2024-09-06', 100, 5, 1, 1),
+(3, '2024-08-05', '2024-08-06', 100, 5, 2, 1);
+
+INSERT INTO Turno (id_turno, id_personal, desde, hasta, dinero_inicio, dinero_fin, id_lugar) VALUES
+(5, 5,  '2024-09-01', '2024-09-02', 100, 90, 1),  -- Juan atendió al cliente 1
+(6, 5,  '2024-09-01', '2024-09-05',100, 5, 1),  -- Juan atendió al cliente 2
+(7, 5,  '2024-09-01', '2024-09-07',100, 5, 1),  -- Juan atendió al cliente 3
+(8, 6,  '2024-09-02', '2024-09-09',100, 5, 1);  -- Ana atendió al cliente 4
+
+UPDATE Turno SET id_personal = 7 WHERE id_turno = 5;
+UPDATE Turno SET desde = '2024-08-01' WHERE id_turno = 6;
+
+INSERT INTO Cliente (id_cliente, saldo) VALUES
+(5, null),   -- Cliente atendido por Juan
+(6, null),    -- Otro cliente atendido por Juan
+(7, null), -- Tercer cliente atendido por Juan
+(8, null);   -- Cliente atendido por Ana
+
+INSERT INTO Comprobante (id_comp, id_tcomp,fecha, comentario,estado, fecha_vencimiento, id_turno, importe, id_cliente, id_lugar ) VALUES
+(5, 1, '1980-10-10', 'comentario ','', '1980-10-10',  5,  0, 5, 1),
+(6, 1, '1980-10-10', 'comentario ','', '1980-10-10',  6,  0, 6, 1),
+(7, 1, '1980-10-10', 'comentario ','', '1980-10-10',  7,  0, 7, 1),
+(8, 1, '1980-10-10', 'comentario ','', '1980-10-10',  8,  0, 8, 1);
+
+CREATE OR REPLACE FUNCTION funcion_generar_informe_empleados(fecha_inicio DATE, fecha_fin DATE)
+RETURNS TABLE (
+    nombre_empleado VARCHAR,
+    apellido_empleado VARCHAR,
+    cantidad_clientes INT,
+    tiempo_promedio INTERVAL,
+    tiempo_maximo INTERVAL
+) LANGUAGE 'plpgsql' AS
+$body$
+DECLARE
+    r_personal RECORD; -- Registro de empleados
+    cantidad_clientes INT; -- Variable para la cantidad de clientes distintos
+    tiempo_promedio INTERVAL; -- Variable para el tiempo promedio
+    tiempo_maximo INTERVAL; -- Variable para el tiempo máximo
+BEGIN
+    -- Seleccionamos los empleados que tienen turnos entre las fechas dadas
+    FOR r_personal IN
+        SELECT p.id_personal, per.nombre, per.apellido
+        FROM Personal p
+        JOIN Persona per ON p.id_personal = per.id_persona
+        WHERE EXISTS (
+            SELECT 1
+            FROM Turno t
+            WHERE t.id_personal = p.id_personal
+            AND t.desde BETWEEN fecha_inicio AND fecha_fin AND per.activo = TRUE
+        )
+    LOOP
+        -- Contamos la cantidad de clientes distintos atendidos por el empleado en el período
+        SELECT COUNT(DISTINCT c.id_cliente)
+        INTO cantidad_clientes
+        FROM Turno t
+        JOIN Comprobante c ON c.id_turno = t.id_turno
+        WHERE t.id_personal = r_personal.id_personal
+        AND t.desde BETWEEN fecha_inicio AND fecha_fin;
+
+        -- Calculamos el tiempo promedio y máximo de los turnos atendidos por el empleado en el período
+        SELECT AVG(t.hasta - t.desde), MAX(t.hasta - t.desde)
+        INTO tiempo_promedio, tiempo_maximo
+        FROM Turno t
+        WHERE t.id_personal = r_personal.id_personal
+        AND t.desde BETWEEN fecha_inicio AND fecha_fin;
+
+        -- Devolvemos los resultados
+        RETURN QUERY SELECT r_personal.nombre, r_personal.apellido,
+                        COALESCE(cantidad_clientes, 0),
+                        COALESCE(tiempo_promedio, INTERVAL '0 seconds'),
+                        COALESCE(tiempo_maximo, INTERVAL '0 seconds');
+    END LOOP;
+
+    -- Mensaje final de éxito (opcional)
+    RAISE NOTICE 'Informe generado correctamente entre las fechas: % y %', fecha_inicio, fecha_fin;
+END;
+$body$;
+
+-- Llamar a la función y obtener los resultados
+SELECT * FROM funcion_generar_informe_empleados(to_date('2024-09-01', 'yyyy-mm-dd'), to_date('2024-09-30', 'yyyy-mm-dd'));
 
 --////////////// Trigger sin el importe en 0, debido la restriccion del inciso 1-b /////////////////////
 -- CREATE OR REPLACE PROCEDURE generar_facturas_servicios(fecha_factura DATE)
