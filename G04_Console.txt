@@ -524,6 +524,117 @@ $body$;
 -- Llamar a la función y obtener los resultados
 SELECT * FROM funcion_generar_informe_empleados(to_date('2024-09-01', 'yyyy-mm-dd'), to_date('2024-09-30', 'yyyy-mm-dd'));
 
+-- ////////////////////////  3-a  ////////////////////////
+/*
+Vista1, que contenga el saldo de cada uno de los clientes menores de 30 años de la ciudad 'Napoli',
+que posean más de 3 servicios.
+*/
+
+-- Insertar en la tabla Direccion
+INSERT INTO Direccion (id_direccion, id_persona, calle, numero, piso, depto, id_barrio)
+VALUES (1, 1, 'Calle1', 219, 1, 1, 1);
+
+-- Insertar en la tabla Barrio
+INSERT INTO Barrio (id_barrio, nombre, id_ciudad)
+VALUES (1, 'Centro', 1);
+
+-- Insertar en la tabla Ciudad
+INSERT INTO Ciudad (id_ciudad, nombre)
+VALUES (1, 'Napoli');
+
+-- Insertar en la tabla Cliente
+INSERT INTO Cliente (id_cliente, saldo)
+VALUES (1, 100.00);
+
+-- Insertar en la tabla Servicio (con más de 3 servicios asociados)
+INSERT INTO Servicio (id_servicio, nombre, periodico, costo, intervalo, tipo_intervalo, activo, id_cat)
+VALUES
+    (100, 'Servicio 1', true, 1000, 1, 'mes', true, 1),
+    (200, 'Servicio 2', true, 1000, 1, 'mes', true, 1),
+    (300, 'Servicio 3', true, 1000, 1, 'mes', true, 1),
+    (400, 'Servicio 4', true, 1000, 1, 'mes', true, 1);
+
+SELECT c.id_cliente, c.saldo
+FROM Cliente c
+JOIN Persona p ON c.id_cliente = p.id_persona
+JOIN Direccion d ON p.id_persona = d.id_persona
+JOIN Barrio b ON d.id_barrio = b.id_barrio
+JOIN Ciudad ci ON b.id_ciudad = ci.id_ciudad
+JOIN Equipo e ON c.id_cliente = e.id_cliente
+WHERE ci.nombre = 'Napoli'
+AND p.fecha_nacimiento > CURRENT_DATE - INTERVAL '30 years'
+GROUP BY c.id_cliente, c.saldo
+HAVING COUNT(e.id_servicio) > 3;
+
+CREATE OR REPLACE VIEW Vista1 AS
+SELECT c.id_cliente, c.saldo
+FROM Cliente c
+WHERE c.id_cliente IN ( SELECT p.id_persona
+                        FROM Persona p
+                        WHERE p.fecha_nacimiento > CURRENT_DATE - INTERVAL '30 years'
+                        AND p.id_persona IN (   SELECT e.id_cliente
+                                                FROM Equipo e
+                                                GROUP BY e.id_cliente
+                                                HAVING COUNT(e.id_servicio) > 3
+                                                )
+                        AND p.id_persona IN (   SELECT d.id_persona
+                                                FROM Direccion d
+                                                WHERE d.id_barrio IN (  SELECT b.id_barrio
+                                                                        FROM Barrio b
+                                                                        WHERE b.id_ciudad IN (  SELECT ci.id_ciudad
+                                                                                                FROM Ciudad ci
+                                                                                                WHERE ci.nombre = 'Napoli'
+                                                                                                )
+                                                                        )
+                                                  )
+                           );
+
+SELECT * FROM Vista1;
+
+-- ////////////////////////  3-b  ////////////////////////
+/*
+Vista2, con los datos de los clientes activos del sistema que hayan sido dados de alta en el
+año actual y que poseen al menos un servicio activo, incluyendo el/los servicio/s activo/s que
+cada uno posee y su costo.
+*/
+
+SELECT c.id_cliente, c.saldo as saldo_cliente,s.nombre, s.id_servicio, s.costo as costo_servicio, s.activo
+FROM Cliente c
+JOIN Persona p ON c.id_cliente = p.id_persona
+JOIN Equipo e ON c.id_cliente = e.id_cliente
+JOIN Servicio s ON e.id_servicio = s.id_servicio
+WHERE extract(YEAR FROM p.fecha_alta)  = extract(YEAR FROM now())
+  AND p.activo = true
+  AND s.activo = true;
+
+CREATE OR REPLACE VIEW Vista2 AS
+SELECT c.id_cliente, c.saldo as saldo_cliente,s.nombre, s.id_servicio, s.costo as costo_servicio, s.activo
+FROM Cliente c
+JOIN Persona p ON c.id_cliente = p.id_persona
+JOIN Equipo e ON c.id_cliente = e.id_cliente
+JOIN Servicio s ON e.id_servicio = s.id_servicio
+WHERE extract(YEAR FROM p.fecha_alta)  = extract(YEAR FROM now())
+  AND p.activo = true
+  AND s.activo = true;
+
+/*CREATE OR REPLACE FUNCTION funcion_trigger_vista2()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF ()
+
+    RETURN OLD;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trigger_vista2
+INSTEAD OF DELETE ON Vista2
+FOR EACH ROW
+EXECUTE FUNCTION funcion_trigger_vista2();
+
+DELETE FROM Vista2 v
+WHERE v.id_cliente = 1;
+*/
+
 --////////////// Trigger sin el importe en 0, debido la restriccion del inciso 1-b /////////////////////
 -- CREATE OR REPLACE PROCEDURE generar_facturas_servicios(fecha_factura DATE)
 -- LANGUAGE 'plpgsql' AS
