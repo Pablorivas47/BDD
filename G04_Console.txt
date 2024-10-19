@@ -1,5 +1,7 @@
 -- //////////////////////// TPE BDD  ////////////////////////
 
+
+
 -- TABLA Cliente:
 ALTER TABLE Cliente ADD CONSTRAINT ck_saldo_no_negativo
 CHECK (saldo >= 0);
@@ -50,10 +52,6 @@ CHECK (dinero_inicio > 0 AND dinero_fin > 0);
 -- Justificación: Este CHECK garantiza que tanto el dinero al inicio como al final del turno sean valores positivos.
 -- Esto previene inconsistencias, y asegura que por más que se realicen gastos el dinero final nunca sea negativo, por lo que no se podría realizar una compra sin tener el dinero suficiente.
 
-ALTER TABLE Turno ADD CONSTRAINT ck_dinero_orden
-CHECK (dinero_inicio > dinero_fin);
--- Justificación: Este CHECK asegura que el dinero al inicio del turno sea mayor que el dinero al final, lo que indica
--- un consumo de recursos o gastos durante el turno.
 
 -- ---------------- Insert y Delete tuplas ----------------
 
@@ -74,22 +72,8 @@ UPDATE Persona
 SET id_persona = 2
 WHERE id_persona = 3;
 
--- //////////////////////// 1-a Tuplas para check  ////////////////////////
 
--- INSERT que cumple la restricción -> CUMPLE con el Alter table del inciso 1-a
-INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail)
-VALUES (1, 'Física', 'DNI', '87654321', 'María', 'Gómez', '1985-05-15', '2024-01-01', '2024-07-15', false, 'maria.gomez@mail.com');
 
--- INSERT que cumple la restricción porque la persona está activa
-INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail)
-VALUES (2, 'Física', 'DNI', '11223344', 'Carlos', 'López', '1980-10-10', '2024-01-01', NULL, true, 'carlos.lopez@mail.com');
-
--- INSERT que no cumple la restricción -> NO CUMPLE con el Alter table del inciso 1-a
-INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail)
-VALUES (3, 'Física', 'DNI', '12345678', 'Juan', 'Pérez', '1990-01-01', '2024-01-01', '2024-04-01', false, 'juan.perez@mail.com');
-
-SELECT p.*
-FROM unc_249828.persona p;
 
 -- ---------------- Inciso 1) a ----------------
 
@@ -100,67 +84,38 @@ CHECK (
     (activo = false AND fecha_baja IS NOT NULL AND fecha_baja >= fecha_alta + INTERVAL '6 months')
 );
 
+SELECT per.id_persona, per.activo,per.fecha_alta, per.fecha_baja FROM persona per
+WHERE per.activo = true;
 
+UPDATE persona SET activo = false WHERE id_persona = 1;
 
 
 -- //////////////////////// 1-b Tuplas para check  ////////////////////////
 
--- Insert en LineaComprobante
-INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp,descripcion, cantidad, importe, id_servicio) VALUES
-(1, 101, 1, 'descripcion1',10, 50,null);
-
-INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp,descripcion, cantidad, importe, id_servicio) VALUES
-(2, 101, 1, 'descripcion2',20, 30,null);
-
-INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp,descripcion, cantidad, importe, id_servicio) VALUES
-(3, 101, 1, 'descripcion3',20, 20,null);
-
--- Insert en Comprobante que cumple con la suma de LineaComprobante
-INSERT INTO Comprobante (id_comp, id_tcomp,fecha, comentario,estado, fecha_vencimiento, id_turno, importe, id_cliente, id_lugar ) VALUES
-(104, 1, '1980-10-10', 'comentario ','', '1980-10-10',  null,  80, 1, 1);
-
-INSERT INTO Comprobante (id_comp, id_tcomp,fecha, comentario,estado, fecha_vencimiento, id_turno, importe, id_cliente, id_lugar ) VALUES
-(103, 1, '1980-10-10', 'comentario ','', '1980-10-10',  null,  0, 1, 1);
-
-INSERT INTO tipocomprobante (id_tcomp, nombre, tipo ) VALUES
-(1, 'Pablo', '');
-
-INSERT INTO cliente (id_cliente, saldo ) VALUES
-(1, 20.00);
-
-INSERT INTO cliente (id_cliente, saldo ) VALUES
-(2, 20.00);
-
-INSERT INTO Lugar (id_lugar, nombre ) VALUES
-(1, 'Pablo');
-
-UPDATE comprobante
-SET importe = 550
-WHERE id_tcomp = 1 and id_comp = 3;
-
-UPDATE lineacomprobante
-SET importe = 3500
-WHERE id_tcomp = 1 and id_comp = 3;
-
-SELECT t.*
-FROM unc_249828.comprobante t;
-
-SELECT lc.*
-FROM unc_249828.lineacomprobante lc;
-
-DELETE FROM lineacomprobante
-WHERE id_comp = 101 and nro_linea = 1;
-
 -- ---------------- Inciso 1) b ----------------
--- Esta consulta te devuelve todos los comprobantes donde el importe no coincide con la suma de los importes
--- de las líneas asociadas. COALESCE se usa para manejar el caso en que no haya líneas asociadas
--- (en cuyo caso, el total es 0).
 
 SELECT c.id_comp, c.id_tcomp, c.importe
 FROM Comprobante c
 LEFT JOIN LineaComprobante lc Using(id_comp,id_tcomp)
 GROUP BY c.id_comp, c.id_tcomp, c.importe
 HAVING c.importe = COALESCE(SUM(lc.importe), 0);
+
+-- las lineas comprobantes c.id_comp = 446 and c.id_tcomp =1 son 3 por lo tanto en comprobante el monto
+-- se actualiza en funcion a la suma de las 3 lineas
+
+SELECT lc.importe, lc.id_comp, lc.id_tcomp FROM lineacomprobante lc
+WHERE lc.id_comp = 446 and lc.id_tcomp =1 ;
+
+SELECT c.importe, c.id_comp, c.id_tcomp FROM comprobante c
+WHERE c.id_comp = 446 and c.id_tcomp =1 ;
+
+UPDATE lineacomprobante
+SET importe = 69
+WHERE id_tcomp = 1 and id_comp = 446;
+
+UPDATE lineacomprobante
+SET id_comp = 446
+WHERE id_tcomp = 1 and id_comp = 325;
 
 --////////// Comprobante //////////
 
@@ -206,7 +161,6 @@ DECLARE
     v_id_comp BIGINT;
     v_id_tcomp INT;
 BEGIN
-    -- Definir los valores de id_comp e id_tcomp basados en la operación (INSERT, UPDATE, DELETE)
     IF (TG_OP = 'DELETE') THEN
         v_id_comp := OLD.id_comp;
         v_id_tcomp := OLD.id_tcomp;
@@ -236,6 +190,16 @@ FOR EACH ROW
 EXECUTE FUNCTION func_actualizar_importe_comprobante();
 
 -- ---------------- Inciso 1) c ----------------
+-- ya le asigne la ip al cliente 34
+UPDATE equipo
+SET ip = '192.168.0.1'
+WHERE id_cliente = 34;
+
+-- cuando se la queremos asignar la misma ip al cliente 33, salta el trigger
+UPDATE equipo
+SET ip = '192.168.0.1'
+WHERE id_cliente = 33;
+
 CREATE OR REPLACE FUNCTION func_verificar_ip_unica()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -259,67 +223,8 @@ BEFORE INSERT OR UPDATE ON Equipo
 FOR EACH ROW
 EXECUTE FUNCTION func_verificar_ip_unica();
 
--- //////////////////////// 1-c Tuplas para check  ////////////////////////
-
---//testeo de insert
-INSERT INTO equipo (id_equipo, nombre, mac, ip, id_cliente, fecha_alta)
-VALUES(123, 'smartphone', '1234','2001',1, '2001-08-18');
---//equipo insertado//acepta
-INSERT INTO equipo (id_equipo, nombre, mac, ip, id_cliente, fecha_alta)
-VALUES(1234, 'smartphone', '1234','2001',2, '2001-08-18');
---//equipo a insertar con la misma IP//tira error
-
---//testeo de update
-UPDATE equipo
-SET ip = '2001'
-WHERE id_equipo = 1234 and id_cliente = 2;
---//update//tira error
-UPDATE equipo
-SET ip = '2003'
-WHERE id_equipo = 1234 and id_cliente = 2;
---//update//acepta
 
 -- //////////////////////// 2-a  ////////////////////////
-SELECT s.*
-FROM unc_249828.servicio s;
-
-DELETE FROM servicio
-WHERE id_servicio = 1;
-
-INSERT INTO servicio (id_servicio, nombre,periodico, costo, intervalo, tipo_intervalo, activo, id_cat)
-VALUES
-(1, 'Servicio de Internet 50MB', TRUE,5000, 1, 'mes',  TRUE,1);
-INSERT INTO servicio (id_servicio, nombre,periodico, costo, intervalo, tipo_intervalo, activo, id_cat)
-VALUES
-(2, 'Mantenimiento de Equipo', TRUE, 10000, 3, 'mes',  TRUE,2);
-
-
-SELECT c.*
-FROM unc_249828.categoria c;
-
-INSERT INTO categoria (id_cat, nombre)
-VALUES
-(1, 'Categoria 1'),
-(2, 'Categoria 2'),
-(3, 'Categoria 3');
-
-SELECT e.*
-FROM unc_249828.equipo e;
-
-INSERT INTO Equipo (id_equipo, id_cliente, id_servicio, nombre, mac, ip, ap, fecha_alta, fecha_baja, tipo_conexion, tipo_asignacion)
-VALUES
-(1, 1, 1, 'Router de Maria Gomez', 'AA:BB:CC:DD:EE:FF', '192.168.1.10', 'AP1', '2024-01-01', NULL, 'Fibra óptica', 'Manual'),
-(2, 2, 2, 'Servidor de Carlos Lopez', 'FF:EE:DD:CC:BB:AA', '192.168.1.11', 'AP2', '2024-01-01', NULL, 'Cable Ethernet', 'Automático');
-
-
-SELECT p.*
-FROM unc_249828.persona p;
-
-INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail, telef_area, telef_numero)
-VALUES
-(1, 'Física', 'DNI', '876554321', 'Maria', 'Gomez', '1985-05-15', '2024-01-01', '2024-07-15', false, 'maria.gomez@mail.com', null,null),
-(2, 'Física', 'DNI', '11223344', 'Carlos', 'Lopez', '1980-10-10', '2024-01-01', null, true, 'carlos.lopez@mail.com',null,null);
-
 
 -- es para que se setee automaticamente el id del comprobante, sin tener que verificar cual falta
 CREATE SEQUENCE comprobante_seq
@@ -402,70 +307,94 @@ $body$;
 
 CALL proce_generar_facturas_servicios(to_date('2024-10-01', 'yyyy-mm-dd'));
 
+--////////////// Trigger sin el importe en 0, debido la restriccion del inciso 1-b /////////////////////
+-- CREATE OR REPLACE PROCEDURE generar_facturas_servicios(fecha_factura DATE)
+-- LANGUAGE 'plpgsql' AS
+-- $body$
+-- DECLARE
+--     r_servicio RECORD;
+--     r_equipo RECORD;
+--     v_id_comp BIGINT;
+--     v_id_tcomp INT := 1; -- Asumimos un tipo de comprobante
+--     v_fecha TIMESTAMP := fecha_factura; -- Utilizamos la fecha pasada como parámetro
+-- BEGIN
+--     -- Seleccionamos todos los servicios periódicos activos
+--     FOR r_servicio IN
+--         SELECT id_servicio, nombre, costo, intervalo, tipo_intervalo
+--         FROM Servicio
+--         WHERE periodico = TRUE AND activo = TRUE
+--     LOOP
+--         -- Para cada servicio periódico, buscamos los equipos asociados a clientes
+--         FOR r_equipo IN
+--             SELECT id_cliente, id_servicio
+--             FROM Equipo
+--             WHERE id_servicio = r_servicio.id_servicio AND id_cliente IS NOT NULL
+--         LOOP
+--             -- Generar ID único para el comprobante
+--             v_id_comp := nextval('comprobante_seq'); -- Verifica que la secuencia exista
+--
+--             -- Insertar el comprobante
+--             INSERT INTO Comprobante (id_comp, id_tcomp, fecha, comentario, estado, fecha_vencimiento, importe, id_cliente, id_lugar)
+--             VALUES (
+--                 v_id_comp,
+--                 v_id_tcomp,
+--                 v_fecha, -- Utilizar la fecha pasada como parámetro
+--                 'Factura generada automáticamente para el servicio ' || r_servicio.nombre,
+--                 'Pendiente', -- Estado de la factura
+--                 v_fecha + INTERVAL '1 month', -- Fecha de vencimiento (un mes después)
+--                 r_servicio.costo, -- Importe del servicio
+--                 r_equipo.id_cliente,
+--                 NULL -- Asumimos que no hay lugar asociado
+--             );
+--
+--             -- Insertar la línea del comprobante para el servicio facturado
+--             INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp, descripcion, cantidad, importe, id_servicio)
+--             VALUES (
+--                 1, -- Primera línea del comprobante
+--                 v_id_comp,
+--                 v_id_tcomp,
+--                 'Servicio: ' || r_servicio.nombre || ', Periodo: ' || r_servicio.intervalo || ' ' || r_servicio.tipo_intervalo,
+--                 1, -- Cantidad de servicios facturados
+--                 r_servicio.costo, -- Importe del servicio
+--                 r_servicio.id_servicio
+--             );
+--         END LOOP;
+--     END LOOP;
+--
+--     -- Mensaje para indicar éxito en la generación de facturas
+--     RAISE NOTICE 'Facturas generadas correctamente para la fecha: %', v_fecha;
+-- EXCEPTION
+--     WHEN OTHERS THEN
+--         RAISE EXCEPTION 'Error al generar las facturas: %', SQLERRM;
+-- END;
+-- $body$;
+--
+-- -- Llamada al procedimiento con la fecha de facturación
+-- CALL generar_facturas_servicios(to_date('2024-10-01', 'yyyy-mm-dd'));
+
 -- //////////////////////// 2-b  ////////////////////////
 -- Al ser invocado entre dos fechas cualesquiera genere un informe de los empleados
 -- (personal) junto con la cantidad de clientes distintos que cada uno ha atendido en tal periodo y
 -- los tiempos promedio y máximo del conjunto de turnos atendidos en el periodo.
 
-SELECT r.*
-FROM unc_249828.rol r;
 
-INSERT INTO Persona (id_persona, tipo, tipodoc, nrodoc, nombre, apellido, fecha_nacimiento, fecha_alta, fecha_baja, activo, mail, telef_area, telef_numero)
-VALUES
-(5, 'Física', 'DNI', '876554321', 'Juan', 'Pérez', '1985-05-15', '2024-01-01', null, true, 'juan.perez@mail.com', null,null),
-(6, 'Física', 'DNI', '11223344', 'Ana', 'Gómez', '1980-10-10', '2024-01-01', null, true, 'ana.gomez@mail.com',null,null),
-(7, 'Física', 'DNI', '876554321', 'Luis', 'Martínez', '1985-05-15', '2024-01-01', null, true, 'luis.martinez@mail.com', null,null),
-(8, 'Física', 'DNI', '11223344', 'Sofía', 'Fernández', '1980-10-10', '2024-01-01', null, true, 'sofia.fernandez@mail.com',null,null);
+SELECT p.nombre, p.apellido, p.activo, p.tipo FROM persona p
+WHERE id_persona = 19;
 
-INSERT INTO Rol (id_rol, nombre)
-VALUES
--- (1, 'Ferbacio'),
--- (2, 'Pablitongo');
-(5, 'Fotografo'),
-(6, 'Recepcionista');
+SELECT per.id_personal, per.id_rol FROM personal per
+WHERE per.id_personal = 19;
 
-SELECT p.*
-FROM unc_249828.persona p;
+SELECT r.id_rol, r.nombre FROM rol r
+WHERE r.id_rol = 1;
 
-SELECT per.*
-FROM unc_249828.personal per;
+SELECT t.id_personal, t.id_turno FROM turno t
+WHERE t.desde BETWEEN to_date('2000-01-01', 'yyyy-mm-dd') AND to_date('2008-12-31', 'yyyy-mm-dd') AND t.id_personal = 19;
 
-INSERT INTO Personal (id_personal, id_rol)
-VALUES
-(1, 1),
-(2, 2);
+SELECT c.id_cliente, c.id_turno FROM comprobante c
+WHERE c.id_turno IN (5,12,44, 137,160);
 
-INSERT INTO Personal (id_personal, id_rol) VALUES
-(5, 5),  -- Juan Pérez como Fotógrafo
-(6, 5),  -- Ana Gómez como Fotógrafo
-(7, 6);  -- Luis Martínez como Recepcionista
-
-INSERT INTO Turno (id_turno, desde, hasta, dinero_inicio, dinero_fin, id_personal, id_lugar)
-VALUES
-(1, '2024-09-02', '2024-09-03', 100, 90, 1, 1),
-(2, '2024-09-05', '2024-09-06', 100, 5, 1, 1),
-(3, '2024-08-05', '2024-08-06', 100, 5, 2, 1);
-
-INSERT INTO Turno (id_turno, id_personal, desde, hasta, dinero_inicio, dinero_fin, id_lugar) VALUES
-(5, 5,  '2024-09-01', '2024-09-02', 100, 90, 1),  -- Juan atendió al cliente 1
-(6, 5,  '2024-09-01', '2024-09-05',100, 5, 1),  -- Juan atendió al cliente 2
-(7, 5,  '2024-09-01', '2024-09-07',100, 5, 1),  -- Juan atendió al cliente 3
-(8, 6,  '2024-09-02', '2024-09-09',100, 5, 1);  -- Ana atendió al cliente 4
-
-UPDATE Turno SET id_personal = 7 WHERE id_turno = 5;
-UPDATE Turno SET desde = '2024-08-01' WHERE id_turno = 6;
-
-INSERT INTO Cliente (id_cliente, saldo) VALUES
-(5, null),   -- Cliente atendido por Juan
-(6, null),    -- Otro cliente atendido por Juan
-(7, null), -- Tercer cliente atendido por Juan
-(8, null);   -- Cliente atendido por Ana
-
-INSERT INTO Comprobante (id_comp, id_tcomp,fecha, comentario,estado, fecha_vencimiento, id_turno, importe, id_cliente, id_lugar ) VALUES
-(5, 1, '1980-10-10', 'comentario ','', '1980-10-10',  5,  0, 5, 1),
-(6, 1, '1980-10-10', 'comentario ','', '1980-10-10',  6,  0, 6, 1),
-(7, 1, '1980-10-10', 'comentario ','', '1980-10-10',  7,  0, 7, 1),
-(8, 1, '1980-10-10', 'comentario ','', '1980-10-10',  8,  0, 8, 1);
+-- podemos ver que devuelve 12 clientes distintos, ya que el 69 lo repite
+-- este es el paso a paso como fui chequeando que el trigger anduviera como corresponde
 
 CREATE OR REPLACE FUNCTION funcion_generar_informe_empleados(fecha_inicio DATE, fecha_fin DATE)
 RETURNS TABLE (
@@ -491,8 +420,8 @@ BEGIN
             SELECT 1
             FROM Turno t
             WHERE t.id_personal = p.id_personal
-            AND t.desde BETWEEN fecha_inicio AND fecha_fin AND per.activo = TRUE
-        )
+            AND t.desde BETWEEN fecha_inicio AND fecha_fin
+        ) and per.tipo = 'P' AND per.activo = TRUE
     LOOP
         -- Contamos la cantidad de clientes distintos atendidos por el empleado en el período
         SELECT COUNT(DISTINCT c.id_cliente)
@@ -522,7 +451,7 @@ END;
 $body$;
 
 -- Llamar a la función y obtener los resultados
-SELECT * FROM funcion_generar_informe_empleados(to_date('2024-09-01', 'yyyy-mm-dd'), to_date('2024-09-30', 'yyyy-mm-dd'));
+SELECT * FROM funcion_generar_informe_empleados(to_date('2000-01-01', 'yyyy-mm-dd'), to_date('2008-12-31', 'yyyy-mm-dd'));
 
 -- ////////////////////////  3-a  ////////////////////////
 /*
@@ -530,29 +459,7 @@ Vista1, que contenga el saldo de cada uno de los clientes menores de 30 años de
 que posean más de 3 servicios.
 */
 
--- Insertar en la tabla Direccion
-INSERT INTO Direccion (id_direccion, id_persona, calle, numero, piso, depto, id_barrio)
-VALUES (1, 1, 'Calle1', 219, 1, 1, 1);
-
--- Insertar en la tabla Barrio
-INSERT INTO Barrio (id_barrio, nombre, id_ciudad)
-VALUES (1, 'Centro', 1);
-
--- Insertar en la tabla Ciudad
-INSERT INTO Ciudad (id_ciudad, nombre)
-VALUES (1, 'Napoli');
-
--- Insertar en la tabla Cliente
-INSERT INTO Cliente (id_cliente, saldo)
-VALUES (1, 100.00);
-
 -- Insertar en la tabla Servicio (con más de 3 servicios asociados)
-INSERT INTO Servicio (id_servicio, nombre, periodico, costo, intervalo, tipo_intervalo, activo, id_cat)
-VALUES
-    (100, 'Servicio 1', true, 1000, 1, 'mes', true, 1),
-    (200, 'Servicio 2', true, 1000, 1, 'mes', true, 1),
-    (300, 'Servicio 3', true, 1000, 1, 'mes', true, 1),
-    (400, 'Servicio 4', true, 1000, 1, 'mes', true, 1);
 
 SELECT c.id_cliente, c.saldo
 FROM Cliente c
@@ -635,67 +542,94 @@ DELETE FROM Vista2 v
 WHERE v.id_cliente = 1;
 */
 
---////////////// Trigger sin el importe en 0, debido la restriccion del inciso 1-b /////////////////////
--- CREATE OR REPLACE PROCEDURE generar_facturas_servicios(fecha_factura DATE)
--- LANGUAGE 'plpgsql' AS
--- $body$
--- DECLARE
---     r_servicio RECORD;
---     r_equipo RECORD;
---     v_id_comp BIGINT;
---     v_id_tcomp INT := 1; -- Asumimos un tipo de comprobante
---     v_fecha TIMESTAMP := fecha_factura; -- Utilizamos la fecha pasada como parámetro
--- BEGIN
---     -- Seleccionamos todos los servicios periódicos activos
---     FOR r_servicio IN
---         SELECT id_servicio, nombre, costo, intervalo, tipo_intervalo
---         FROM Servicio
---         WHERE periodico = TRUE AND activo = TRUE
---     LOOP
---         -- Para cada servicio periódico, buscamos los equipos asociados a clientes
---         FOR r_equipo IN
---             SELECT id_cliente, id_servicio
---             FROM Equipo
---             WHERE id_servicio = r_servicio.id_servicio AND id_cliente IS NOT NULL
---         LOOP
---             -- Generar ID único para el comprobante
---             v_id_comp := nextval('comprobante_seq'); -- Verifica que la secuencia exista
---
---             -- Insertar el comprobante
---             INSERT INTO Comprobante (id_comp, id_tcomp, fecha, comentario, estado, fecha_vencimiento, importe, id_cliente, id_lugar)
---             VALUES (
---                 v_id_comp,
---                 v_id_tcomp,
---                 v_fecha, -- Utilizar la fecha pasada como parámetro
---                 'Factura generada automáticamente para el servicio ' || r_servicio.nombre,
---                 'Pendiente', -- Estado de la factura
---                 v_fecha + INTERVAL '1 month', -- Fecha de vencimiento (un mes después)
---                 r_servicio.costo, -- Importe del servicio
---                 r_equipo.id_cliente,
---                 NULL -- Asumimos que no hay lugar asociado
---             );
---
---             -- Insertar la línea del comprobante para el servicio facturado
---             INSERT INTO LineaComprobante (nro_linea, id_comp, id_tcomp, descripcion, cantidad, importe, id_servicio)
---             VALUES (
---                 1, -- Primera línea del comprobante
---                 v_id_comp,
---                 v_id_tcomp,
---                 'Servicio: ' || r_servicio.nombre || ', Periodo: ' || r_servicio.intervalo || ' ' || r_servicio.tipo_intervalo,
---                 1, -- Cantidad de servicios facturados
---                 r_servicio.costo, -- Importe del servicio
---                 r_servicio.id_servicio
---             );
---         END LOOP;
---     END LOOP;
---
---     -- Mensaje para indicar éxito en la generación de facturas
---     RAISE NOTICE 'Facturas generadas correctamente para la fecha: %', v_fecha;
--- EXCEPTION
---     WHEN OTHERS THEN
---         RAISE EXCEPTION 'Error al generar las facturas: %', SQLERRM;
--- END;
--- $body$;
---
--- -- Llamada al procedimiento con la fecha de facturación
--- CALL generar_facturas_servicios(to_date('2024-10-01', 'yyyy-mm-dd'));
+-- Vista3, que contenga, por cada uno de los servicios periódicos registrados en el sistema, los datos del
+-- servicio y el monto facturado mensualmente durante los últimos 5 años, ordenado por servicio, año, mes y monto.
+
+CREATE OR REPLACE VIEW Vista3 AS
+SELECT s.* , SUM(lc.importe) AS monto_facturado_mensual ,DATE_PART('year', c.fecha) AS anio , DATE_PART('month', c.fecha) AS mes
+FROM servicio s
+JOIN equipo e USING (id_servicio)
+JOIN lineacomprobante lc USING (id_servicio)
+JOIN comprobante c USING (id_comp, id_tcomp)
+WHERE s.periodico = true AND  c.fecha >= NOW() - INTERVAL '5 years'
+GROUP BY s.id_servicio, s.nombre, s.periodico, s.costo, s.intervalo, s.tipo_intervalo, s.activo, s.id_cat, DATE_PART('year', c.fecha) , DATE_PART('month', c.fecha)
+ORDER BY s.nombre, anio, mes , monto_facturado_mensual;
+
+SELECT s.* , SUM(c.importe) AS monto_facturado_mensual ,DATE_PART('year', c.fecha) AS anio , DATE_PART('month', c.fecha) AS mes
+FROM servicio s
+JOIN equipo e USING (id_servicio)
+JOIN lineacomprobante lc USING (id_servicio)
+JOIN comprobante c USING (id_comp, id_tcomp)
+WHERE s.periodico = true AND  c.fecha >= NOW() - INTERVAL '8 years'
+GROUP BY s.id_servicio, s.nombre, s.periodico, s.costo, s.intervalo, s.tipo_intervalo, s.activo, s.id_cat, DATE_PART('year', c.fecha) , DATE_PART('month', c.fecha)
+ORDER BY s.nombre, anio, mes ,monto_facturado_mensual;
+
+SELECT * FROM Vista3;
+
+--////////////// Show Table /////////////////////
+
+SELECT b.* FROM barrio b;
+
+SELECT ciu.* FROM ciudad ciu;
+
+SELECT d.* FROM direccion d;
+
+SELECT per.* FROM persona per;
+
+SELECT p.* FROM personal p;
+
+SELECT r.* FROM rol r;
+
+SELECT tur.* FROM turno tur;
+
+SELECT cli.* FROM cliente cli;
+
+SELECT comp.* FROM comprobante comp;
+
+SELECT lc.* FROM lineacomprobante lc;
+
+SELECT tc.* FROM tipocomprobante tc;
+
+SELECT e.* FROM equipo e;
+
+SELECT l.* FROM lugar l;
+
+SELECT s.* FROM servicio s;
+
+SELECT c.* FROM categoria c;
+
+DELETE FROM turno
+WHERE id_turno = 2;
+
+
+--////////////// DELETE TUPLAS en Table /////////////////////
+
+TRUNCATE TABLE ciudad CASCADE;
+
+TRUNCATE TABLE barrio CASCADE;
+
+TRUNCATE TABLE direccion CASCADE;
+
+TRUNCATE TABLE persona CASCADE;
+
+TRUNCATE TABLE cliente CASCADE;
+
+TRUNCATE TABLE personal CASCADE;
+
+TRUNCATE TABLE rol CASCADE;
+
+TRUNCATE TABLE categoria CASCADE;
+
+TRUNCATE TABLE servicio CASCADE;
+
+TRUNCATE TABLE equipo CASCADE;
+
+TRUNCATE TABLE lugar CASCADE;
+
+TRUNCATE TABLE comprobante CASCADE;
+
+TRUNCATE TABLE tipocomprobante CASCADE;
+
+TRUNCATE TABLE lineacomprobante CASCADE;
+
+

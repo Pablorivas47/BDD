@@ -253,6 +253,9 @@ ALTER TABLE LineaComprobante ADD CONSTRAINT fk_lineacomprobante_comprobante
     INITIALLY IMMEDIATE
 ;
 
+
+
+
 -- Reference: fk_personal_persona (table: Personal)
 ALTER TABLE Personal ADD CONSTRAINT fk_personal_persona
     FOREIGN KEY (id_personal)

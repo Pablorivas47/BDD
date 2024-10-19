@@ -1,0 +1,71 @@
+-- Eliminacion de tablas
+
+DROP TABLE barrio CASCADE;
+
+DROP TABLE ciudad CASCADE;
+
+DROP TABLE direccion CASCADE;
+
+DROP TABLE persona CASCADE;
+
+DROP TABLE personal CASCADE;
+
+DROP TABLE rol CASCADE;
+
+DROP TABLE turno CASCADE;
+
+DROP TABLE cliente CASCADE;
+
+DROP TABLE comprobante CASCADE;
+
+DROP TABLE lineacomprobante CASCADE;
+
+DROP TABLE tipocomprobante CASCADE;
+
+DROP TABLE equipo CASCADE;
+
+DROP TABLE lugar CASCADE;
+
+DROP TABLE servicio CASCADE;
+
+DROP TABLE categoria CASCADE;
+
+
+
+
+-- Eliminacion de vistas
+
+DROP VIEW vista1 CASCADE;
+
+DROP VIEW vista2 CASCADE;
+
+DROP VIEW vista3 CASCADE;
+
+
+
+-- Eliminacion de triggers
+
+DROP TRIGGER func_actualizar_importe_comprobante;
+
+DROP TRIGGER func_verificar_importe_comprobante;
+
+DROP TRIGGER func_verificar_ip_unica;
+
+DROP TRIGGER funcion_trigger_vista2;
+
+
+
+
+-- Eliminacion de funciones y procedures
+
+DROP FUNCION funcion_generar_informe_empleados;
+
+DROP PROCEDURE proce_generar_facturas_servicios;
+
+
+
+
+
+
+
+
